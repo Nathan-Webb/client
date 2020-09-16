@@ -5,12 +5,11 @@ import me.zeroeightsix.kami.gui.kami.component.EnumButton;
 import me.zeroeightsix.kami.gui.rgui.component.container.Container;
 import me.zeroeightsix.kami.gui.rgui.render.AbstractComponentUI;
 import me.zeroeightsix.kami.gui.rgui.render.font.FontRenderer;
-import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 
 import static me.zeroeightsix.kami.gui.kami.theme.kami.KamiGuiColors.GuiC;
-import static me.zeroeightsix.kami.util.colourUtils.ColourConverter.toF;
+import static me.zeroeightsix.kami.util.color.ColorConverter.toF;
 import static org.lwjgl.opengl.GL11.*;
 
 /**
@@ -64,7 +63,6 @@ public class KamiEnumButtonUI extends AbstractComponentUI<EnumButton> {
         } else {
             smallFontRenderer.drawString(component.getWidth() / 2 - smallFontRenderer.getStringWidth(component.getIndexMode()) / 2, 0, c, component.getIndexMode());
         }
-        GL11.glDisable(GL11.GL_BLEND);
     }
 
     @Override

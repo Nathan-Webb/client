@@ -7,6 +7,7 @@ package me.zeroeightsix.kami.mixin.client;
 
 import me.zeroeightsix.kami.KamiMod;
 import me.zeroeightsix.kami.emoji.Emoji;
+import me.zeroeightsix.kami.module.ModuleManager;
 import me.zeroeightsix.kami.module.modules.chat.KamiMoji;
 import me.zeroeightsix.kami.util.Wrapper;
 import net.minecraft.client.gui.FontRenderer;
@@ -46,8 +47,7 @@ public abstract class MixinFontRenderer {
      */
     @Redirect(method = "renderString", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;renderStringAtPos(Ljava/lang/String;Z)V"))
     private void renderStringAtPos(FontRenderer fontRenderer, String text, boolean shadow) {
-        KamiMoji kamiMoji = KamiMod.MODULE_MANAGER.getModuleT(KamiMoji.class);
-        if (kamiMoji != null && kamiMoji.isEnabled()) {
+        if (KamiMoji.INSTANCE != null && KamiMoji.INSTANCE.isEnabled()) {
             int size = FONT_HEIGHT;
 
             for (String possible : text.split(":")) {
@@ -72,8 +72,7 @@ public abstract class MixinFontRenderer {
      */
     @Inject(method = "getStringWidth", at = @At("TAIL"), cancellable = true)
     public void getStringWidth(String text, CallbackInfoReturnable<Integer> cir) {
-        KamiMoji kamiMoji = KamiMod.MODULE_MANAGER.getModuleT(KamiMoji.class);
-        if (cir.getReturnValue() != 0 && kamiMoji != null && kamiMoji.isEnabled()) {
+        if (cir.getReturnValue() != 0 && KamiMoji.INSTANCE != null && KamiMoji.INSTANCE.isEnabled()) {
             int reducedWidth = cir.getReturnValue();
             for (String possible : text.split(":")) {
                 if (KamiMod.KAMIMOJI.isEmoji(possible)) {

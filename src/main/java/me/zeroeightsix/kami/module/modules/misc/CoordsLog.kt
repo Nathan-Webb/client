@@ -2,17 +2,17 @@ package me.zeroeightsix.kami.module.modules.misc
 
 import me.zeroeightsix.kami.module.Module
 import me.zeroeightsix.kami.setting.Settings
-import me.zeroeightsix.kami.util.Coordinate
 import me.zeroeightsix.kami.util.InfoCalculator
-import me.zeroeightsix.kami.util.MessageSendHelper
 import me.zeroeightsix.kami.util.Waypoint
+import me.zeroeightsix.kami.util.text.MessageSendHelper
+import net.minecraft.util.math.BlockPos
 
 @Module.Info(
         name = "CoordsLog",
         description = "Automatically logs your coords, based on actions",
-        category = Module.Category.MISC, showOnArray = Module.ShowOnArray.ON
+        category = Module.Category.MISC
 )
-class CoordsLog : Module() {
+object CoordsLog : Module() {
     private val forceLogOnDeath = register(Settings.b("SaveDeathCoords", true))
     private val deathInChat = register(Settings.b("LogInChat", true))
     private val autoLog = register(Settings.b("Delay", false))
@@ -24,7 +24,6 @@ class CoordsLog : Module() {
     private var startTime: Long = 0
 
     override fun onUpdate() {
-        if (mc.player == null) return
         if (autoLog.value) {
             timeout()
         }
@@ -34,9 +33,9 @@ class CoordsLog : Module() {
         }
 
         if (!playerIsDead && 0 >= mc.player.health && forceLogOnDeath.value) {
-            val deathPoint = logCoordinates("Death - " + InfoCalculator.getServerType(mc))
+            val deathPoint = logCoordinates("Death - " + InfoCalculator.getServerType())
             if (deathInChat.value) {
-                MessageSendHelper.sendChatMessage("You died at " + deathPoint.x + " " + deathPoint.y + " " + deathPoint.z)
+                MessageSendHelper.sendChatMessage("You died at ${deathPoint.x}, ${deathPoint.y}, ${deathPoint.z}")
             }
             playerIsDead = true
         }
@@ -62,11 +61,11 @@ class CoordsLog : Module() {
         }
     }
 
-    private fun logCoordinates(name: String): Coordinate {
+    private fun logCoordinates(name: String): BlockPos {
         return Waypoint.writePlayerCoords(name)
     }
 
-    public override fun onDisable() {
+    override fun onDisable() {
         startTime = 0
     }
 }

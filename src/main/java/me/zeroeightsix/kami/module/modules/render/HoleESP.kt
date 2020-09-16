@@ -1,36 +1,25 @@
 package me.zeroeightsix.kami.module.modules.render
 
-import me.zeroeightsix.kami.KamiMod
 import me.zeroeightsix.kami.event.events.RenderEvent
 import me.zeroeightsix.kami.module.Module
+import me.zeroeightsix.kami.module.ModuleManager
 import me.zeroeightsix.kami.module.modules.combat.CrystalAura
 import me.zeroeightsix.kami.setting.Settings
-import me.zeroeightsix.kami.util.colourUtils.ColourHolder
-import me.zeroeightsix.kami.util.ESPRenderer
-import me.zeroeightsix.kami.util.GeometryMasks
+import me.zeroeightsix.kami.util.BlockUtils.surroundOffset
+import me.zeroeightsix.kami.util.color.ColorHolder
+import me.zeroeightsix.kami.util.graphics.ESPRenderer
+import me.zeroeightsix.kami.util.graphics.GeometryMasks
 import net.minecraft.init.Blocks
 import net.minecraft.util.math.BlockPos
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.ceil
 
-/**
- * Created 16 November 2019 by hub
- * Updated by dominikaaaa on 15/12/19
- * Updated by Xiarooo on 08/08/20
- */
 @Module.Info(
         name = "HoleESP",
         category = Module.Category.RENDER,
         description = "Show safe holes for crystal pvp"
 )
-class HoleESP : Module() {
-    private val surroundOffset = arrayOf(
-            BlockPos(0, -1, 0),  // down
-            BlockPos(0, 0, -1),  // north
-            BlockPos(1, 0, 0),  // east
-            BlockPos(0, 0, 1),  // south
-            BlockPos(-1, 0, 0) // west
-    )
+object HoleESP : Module() {
     private val renderDistance = register(Settings.floatBuilder("RenderDistance").withValue(8.0f).withRange(0.0f, 32.0f).build())
     private val filled = register(Settings.b("Filled", true))
     private val outline = register(Settings.b("Outline", true))
@@ -45,7 +34,7 @@ class HoleESP : Module() {
     private val renderMode = register(Settings.e<Mode>("Mode", Mode.BLOCK_HOLE))
     private val holeType = register(Settings.e<HoleType>("HoleType", HoleType.BOTH))
 
-    private var safeHoles = ConcurrentHashMap<BlockPos, ColourHolder>()
+    private val safeHoles = ConcurrentHashMap<BlockPos, ColorHolder>()
 
     private enum class Mode {
         BLOCK_HOLE, BLOCK_FLOOR, FLAT
@@ -66,7 +55,7 @@ class HoleESP : Module() {
     override fun onUpdate() {
         safeHoles.clear()
         val range = ceil(renderDistance.value).toInt()
-        val crystalAura = KamiMod.MODULE_MANAGER.getModuleT(CrystalAura::class.java)
+        val crystalAura = ModuleManager.getModuleT(CrystalAura::class.java)!!
         val blockPosList = crystalAura.getSphere(CrystalAura.getPlayerPos(), range.toFloat(), range, false, true, 0)
         for (pos in blockPosList) {
             if (mc.world.getBlockState(pos).block != Blocks.AIR// block gotta be air
@@ -88,10 +77,10 @@ class HoleESP : Module() {
 
             if (isSafe) {
                 if (!isBedrock && shouldAddObby()) {
-                    safeHoles[pos] = ColourHolder(r1.value, g1.value, b1.value)
+                    safeHoles[pos] = ColorHolder(r1.value, g1.value, b1.value)
                 }
                 if (isBedrock && shouldAddBedrock()) {
-                    safeHoles[pos] = ColourHolder(r2.value, g2.value, b2.value)
+                    safeHoles[pos] = ColorHolder(r2.value, g2.value, b2.value)
                 }
             }
         }
@@ -101,13 +90,13 @@ class HoleESP : Module() {
         if (mc.player == null || safeHoles.isEmpty()) return
         val side = if (renderMode.value != Mode.FLAT) GeometryMasks.Quad.ALL
         else GeometryMasks.Quad.DOWN
-        val renderer = ESPRenderer(event.partialTicks)
+        val renderer = ESPRenderer()
         renderer.aFilled = if (filled.value) aFilled.value else 0
         renderer.aOutline = if (outline.value) aOutline.value else 0
         for ((pos, colour) in safeHoles) {
             val renderPos = if (renderMode.value == Mode.BLOCK_FLOOR) pos.down() else pos
             renderer.add(renderPos, colour, side)
         }
-        renderer.render()
+        renderer.render(true)
     }
 }

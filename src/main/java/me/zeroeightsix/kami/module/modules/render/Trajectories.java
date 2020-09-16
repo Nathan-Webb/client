@@ -2,17 +2,20 @@ package me.zeroeightsix.kami.module.modules.render;
 
 import me.zeroeightsix.kami.event.events.RenderEvent;
 import me.zeroeightsix.kami.module.Module;
-import me.zeroeightsix.kami.util.ESPRenderer;
-import me.zeroeightsix.kami.util.GeometryMasks;
 import me.zeroeightsix.kami.util.TrajectoryCalculator;
-import me.zeroeightsix.kami.util.colourUtils.ColourHolder;
+import me.zeroeightsix.kami.util.color.ColorHolder;
+import me.zeroeightsix.kami.util.graphics.ESPRenderer;
+import me.zeroeightsix.kami.util.graphics.GeometryMasks;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+
+import static org.lwjgl.opengl.GL11.*;
 
 /**
  * Created by 086 on 28/12/2017.
@@ -24,10 +27,16 @@ import java.util.ArrayList;
         description = "Draws lines to where trajectories are going to fall"
 )
 public class Trajectories extends Module {
-    ArrayList<Vec3d> positions = new ArrayList<>();
+    private final ArrayList<Vec3d> positions = new ArrayList<>();
+
+    public static Trajectories INSTANCE;
+
+    public Trajectories() {
+        INSTANCE = this;
+    }
 
     @Override
-    public void onWorldRender(RenderEvent event) {
+    public void onWorldRender(@NotNull RenderEvent event) {
         try {
             mc.world.loadedEntityList.stream()
                     .filter(entity -> entity instanceof EntityLivingBase)
@@ -49,21 +58,21 @@ public class Trajectories extends Module {
 
                         if (hit != null) {
                             GlStateManager.pushMatrix();
-                            ESPRenderer renderer = new ESPRenderer(event.getPartialTicks());
+                            ESPRenderer renderer = new ESPRenderer();
                             renderer.setAFilled(150);
                             renderer.setAOutline(0);
                             renderer.setThrough(false);
                             renderer.setThickness(0.0f);
                             renderer.setFullOutline(true);
                             AxisAlignedBB box = mc.world.getBlockState(hit).getSelectedBoundingBox(mc.world, hit);
-                            renderer.add(box.grow(0.002), new ColourHolder(255, 255, 255), GeometryMasks.Quad.ALL);
-                            renderer.render();
+                            renderer.add(box.grow(0.002), new ColorHolder(255, 255, 255), GeometryMasks.Quad.ALL);
+                            renderer.render(true);
                             GlStateManager.popMatrix();
                         }
 
                         if (positions.isEmpty()) return;
 
-/*                        GL11.glLineWidth(2F);
+                        glLineWidth(2F);
                         glColor3f(1f, 1f, 1f);
                         glBegin(GL_LINE_STRIP);
                         Vec3d a = positions.get(0);
@@ -71,7 +80,7 @@ public class Trajectories extends Module {
                         for (Vec3d v : positions) {
                             glVertex3d(v.x, v.y, v.z);
                         }
-                        glEnd();*/
+                        glEnd();
                     });
         } catch (Exception e) {
             e.printStackTrace();

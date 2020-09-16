@@ -2,7 +2,6 @@ package me.zeroeightsix.kami.gui.kami.theme.kami;
 
 import me.zeroeightsix.kami.gui.kami.KamiGUI;
 import me.zeroeightsix.kami.gui.kami.theme.staticui.RadarUI;
-import me.zeroeightsix.kami.gui.kami.theme.staticui.TabGuiUI;
 import me.zeroeightsix.kami.gui.rgui.component.container.use.Frame;
 import me.zeroeightsix.kami.gui.rgui.component.use.Button;
 import me.zeroeightsix.kami.gui.rgui.render.AbstractComponentUI;
@@ -27,6 +26,7 @@ public class KamiTheme extends AbstractTheme {
         installUI(new RootChatUI());
         installUI(new RootCheckButtonUI());
         installUI(new KamiActiveModulesUI());
+        installUI(new KamiPotionUi());
         installUI(new KamiSettingsPanelUI());
         installUI(new RootSliderUI());
         installUI(new KamiEnumButtonUI());
@@ -34,7 +34,6 @@ public class KamiTheme extends AbstractTheme {
         installUI(new KamiUnboundSliderUI());
 
         installUI(new RadarUI());
-        installUI(new TabGuiUI());
 
         fontRenderer = KamiGUI.fontRenderer;
     }

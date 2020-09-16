@@ -5,11 +5,17 @@ import me.zero.alpine.listener.Listener;
 import me.zeroeightsix.kami.event.events.PacketEvent;
 import me.zeroeightsix.kami.event.events.RenderEvent;
 import me.zeroeightsix.kami.module.Module;
+import me.zeroeightsix.kami.module.ModuleManager;
 import me.zeroeightsix.kami.module.modules.render.PlayerModel;
 import me.zeroeightsix.kami.setting.Setting;
 import me.zeroeightsix.kami.setting.Settings;
-import me.zeroeightsix.kami.util.*;
-import me.zeroeightsix.kami.util.colourUtils.ColourHolder;
+import me.zeroeightsix.kami.util.EntityUtils;
+import me.zeroeightsix.kami.util.Friends;
+import me.zeroeightsix.kami.util.InfoCalculator;
+import me.zeroeightsix.kami.util.InventoryUtils;
+import me.zeroeightsix.kami.util.color.ColorHolder;
+import me.zeroeightsix.kami.util.graphics.ESPRenderer;
+import me.zeroeightsix.kami.util.math.Vec2d;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -36,10 +42,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static me.zeroeightsix.kami.KamiMod.MODULE_MANAGER;
-import static me.zeroeightsix.kami.module.modules.client.InfoOverlay.getItems;
-import static me.zeroeightsix.kami.util.EntityUtils.calculateLookAt;
-import static me.zeroeightsix.kami.util.MessageSendHelper.sendChatMessage;
+import static me.zeroeightsix.kami.util.math.RotationUtils.getRotationTo;
+import static me.zeroeightsix.kami.util.text.MessageSendHelper.sendChatMessage;
 
 /**
  * Created by 086 on 28/12/2017.
@@ -64,7 +68,7 @@ public class CrystalAura extends Module {
     private Setting<Boolean> place = register(Settings.booleanBuilder("Place").withValue(false).withVisibility(v -> p.getValue().equals(Page.ONE)).build());
     private Setting<Boolean> explode = register(Settings.booleanBuilder("Explode").withValue(false).withVisibility(v -> p.getValue().equals(Page.ONE)).build());
     private Setting<Boolean> checkAbsorption = register(Settings.booleanBuilder("CheckAbsorption").withValue(true).withVisibility(v -> p.getValue().equals(Page.ONE)).build());
-    public  Setting<Double> range = register(Settings.doubleBuilder("Range").withMinimum(1.0).withValue(4.0).withMaximum(10.0).withVisibility(v -> p.getValue().equals(Page.ONE)).build());
+    public Setting<Double> range = register(Settings.doubleBuilder("Range").withMinimum(1.0).withValue(4.0).withMaximum(10.0).withVisibility(v -> p.getValue().equals(Page.ONE)).build());
     private Setting<Boolean> autoDelay = register(Settings.booleanBuilder("AutoDelay").withValue(false).withVisibility(v -> p.getValue().equals(Page.ONE)).build());
     private Setting<Double> delay = register(Settings.doubleBuilder("HitDelay").withMinimum(0.0).withValue(5.0).withMaximum(10.0).withVisibility(v -> !autoDelay.getValue() && p.getValue().equals(Page.ONE)).build());
     private Setting<Integer> hitAttempts = register(Settings.integerBuilder("HitAttempts").withValue(-1).withMinimum(-1).withMaximum(20).withVisibility(v -> p.getValue().equals(Page.ONE)).build());
@@ -88,22 +92,25 @@ public class CrystalAura extends Module {
     private Setting<Integer> b = register(Settings.integerBuilder("Blue").withMinimum(0).withValue(255).withMaximum(255).withVisibility(v -> p.getValue().equals(Page.TWO) && customColours.getValue()).build());
     private Setting<Boolean> statusMessages = register(Settings.booleanBuilder("StatusMessages").withValue(false).withVisibility(v -> p.getValue().equals(Page.TWO)).build());
 
-    private enum ExplodeBehavior { HOLE_ONLY, PREVENT_SUICIDE, LEFT_CLICK_ONLY, ALWAYS }
-    private enum PlaceBehavior { MULTI, TRADITIONAL }
-    private enum Page { ONE, TWO }
+    private enum ExplodeBehavior {HOLE_ONLY, PREVENT_SUICIDE, LEFT_CLICK_ONLY, ALWAYS}
+
+    private enum PlaceBehavior {MULTI, TRADITIONAL}
+
+    private enum Page {ONE, TWO}
 
     private BlockPos render;
     private Entity renderEnt;
     private long systemTime = -1;
-    private static boolean togglePitch = false;
     // we need this cooldown to not place from old hotbar slot, before we have switched to crystals
     private boolean switchCoolDown = false;
     private boolean isAttacking = false;
     private int oldSlot = -1;
 
+    public static CrystalAura INSTANCE;
     private static EntityEnderCrystal lastCrystal;
     private static List<EntityEnderCrystal> ignoredCrystals = new ArrayList<>();
     private static int hitTries = 0;
+    private static boolean togglePitch = false;
 
     public CrystalAura() {
         super();
@@ -111,6 +118,7 @@ public class CrystalAura extends Module {
         defaultSetting.settingListener = setting -> {
             if (defaultSetting.getValue()) defaults();
         };
+        INSTANCE = this;
     }
 
     public void onUpdate() {
@@ -145,13 +153,13 @@ public class CrystalAura extends Module {
                 if (antiWeakness.getValue() && mc.player.isPotionActive(MobEffects.WEAKNESS)) {
                     if (!isAttacking) {
                         // save initial player hand
-                        oldSlot = Wrapper.getPlayer().inventory.currentItem;
+                        oldSlot = mc.player.inventory.currentItem;
                         isAttacking = true;
                     }
                     // search for sword and tools in hotbar
                     int newSlot = -1;
                     for (int i = 0; i < 9; i++) {
-                        ItemStack stack = Wrapper.getPlayer().inventory.getStackInSlot(i);
+                        ItemStack stack = mc.player.inventory.getStackInSlot(i);
                         if (stack == ItemStack.EMPTY) {
                             continue;
                         }
@@ -166,7 +174,7 @@ public class CrystalAura extends Module {
                     }
                     // check if any swords or tools were found
                     if (newSlot != -1) {
-                        Wrapper.getPlayer().inventory.currentItem = newSlot;
+                        mc.player.inventory.currentItem = newSlot;
                         switchCoolDown = true;
                     }
                 }
@@ -181,7 +189,7 @@ public class CrystalAura extends Module {
                 if (explodeBehavior.getValue() == ExplodeBehavior.ALWAYS) {
                     explode(crystal);
                 }
-                for (Vec3d vecOffset:holeOffset) { /* for placeholder offset for each BlockPos in the list holeOffset */
+                for (Vec3d vecOffset : holeOffset) { /* for placeholder offset for each BlockPos in the list holeOffset */
                     BlockPos offset = new BlockPos(vecOffset.x, vecOffset.y, vecOffset.z);
                     if (mc.world.getBlockState(offset).getBlock() == Blocks.OBSIDIAN || mc.world.getBlockState(offset).getBlock() == Blocks.BEDROCK) {
                         holeBlocks++;
@@ -193,7 +201,7 @@ public class CrystalAura extends Module {
                     }
                 }
                 if (explodeBehavior.getValue() == ExplodeBehavior.PREVENT_SUICIDE) {
-                    if (mc.player.getPositionVector().distanceTo(crystal.getPositionVector()) <= 0.5 && mc.player.getPosition().getY() == crystal.getPosition().getY()|| mc.player.getPositionVector().distanceTo(crystal.getPositionVector()) >= 2.3 && mc.player.getPosition().getY() == crystal.getPosition().getY()||mc.player.getPositionVector().distanceTo(crystal.getPositionVector()) >= 0.5 && mc.player.getPosition().getY() != crystal.getPosition().getY()) {
+                    if (mc.player.getPositionVector().distanceTo(crystal.getPositionVector()) <= 0.5 && mc.player.getPosition().getY() == crystal.getPosition().getY() || mc.player.getPositionVector().distanceTo(crystal.getPositionVector()) >= 2.3 && mc.player.getPosition().getY() == crystal.getPosition().getY() || mc.player.getPositionVector().distanceTo(crystal.getPositionVector()) >= 0.5 && mc.player.getPosition().getY() != crystal.getPosition().getY()) {
                         explode(crystal);
                     }
                 }
@@ -201,7 +209,7 @@ public class CrystalAura extends Module {
                     explode(crystal);
                 }
                 if (sneakEnable.getValue() && mc.player.isSneaking() && holeBlocks != 5) {
-                    MODULE_MANAGER.getModule(Surround.class).enable();
+                    ModuleManager.getModule(Surround.class).enable();
                 }
                 return;
             }
@@ -209,7 +217,7 @@ public class CrystalAura extends Module {
         } else {
             resetRotation();
             if (oldSlot != -1) {
-                Wrapper.getPlayer().inventory.currentItem = oldSlot;
+                mc.player.inventory.currentItem = oldSlot;
                 oldSlot = -1;
             }
             isAttacking = false;
@@ -269,7 +277,7 @@ public class CrystalAura extends Module {
                     damage = d;
                     q = blockPos;
                     renderEnt = entity;
-                    PlayerModel.lastAttacked = System.currentTimeMillis();
+                    PlayerModel.INSTANCE.setLastAttacked(System.currentTimeMillis());
                     mc.player.setLastAttackedEntity(entity);
                 }
             }
@@ -288,12 +296,12 @@ public class CrystalAura extends Module {
                     }
                     double d = calculateDamage(blockPos.x + .5, blockPos.y + 1, blockPos.z + .5, entity);
                     double self = calculateDamage(blockPos.x + .5, blockPos.y + 1, blockPos.z + .5, mc.player);
-                    if (self >= mc.player.getHealth()+mc.player.getAbsorptionAmount() || self > d) continue;
+                    if (self >= mc.player.getHealth() + mc.player.getAbsorptionAmount() || self > d) continue;
                     if (b < 10 && d >= 15 || d >= ((EntityLivingBase) entity).getHealth() + ((EntityLivingBase) entity).getAbsorptionAmount() || 6 >= ((EntityLivingBase) entity).getHealth() + ((EntityLivingBase) entity).getAbsorptionAmount() && b < 4 || b < 9 && d >= minDmg.getValue() && minDmg.getValue() > 0.0) {
                         q = blockPos;
                         damage = d;
                         renderEnt = entity;
-                        PlayerModel.lastAttacked = System.currentTimeMillis();
+                        PlayerModel.INSTANCE.setLastAttacked(System.currentTimeMillis());
                         mc.player.setLastAttackedEntity(entity);
                     }
                 }
@@ -316,7 +324,7 @@ public class CrystalAura extends Module {
                 }
                 return;
             }
-            lookAtPacket(q.x + .5, q.y - .5, q.z + .5, mc.player);
+            lookAtPacket(new Vec3d(q.x + .5, q.y - .5, q.z + .5));
             RayTraceResult result = mc.world.rayTraceBlocks(new Vec3d(mc.player.posX, mc.player.posY + mc.player.getEyeHeight(), mc.player.posZ), new Vec3d(q.x + .5, q.y - .5d, q.z + .5));
             EnumFacing f;
             if (result == null || result.sideHit == null) {
@@ -350,21 +358,21 @@ public class CrystalAura extends Module {
             if (tracer.getValue()) {
                 tracerAlpha = aTracer.getValue();
             }
-            ColourHolder colour = new ColourHolder(255, 255, 255);
+            ColorHolder colour = new ColorHolder(255, 255, 255);
             if (customColours.getValue()) {
-                colour = new ColourHolder(r.getValue(), g.getValue(), b.getValue());
+                colour = new ColorHolder(r.getValue(), g.getValue(), b.getValue());
             }
-            ESPRenderer renderer = new ESPRenderer(event.getPartialTicks());
+            ESPRenderer renderer = new ESPRenderer();
             renderer.setAFilled(aBlock.getValue());
             renderer.setATracer(tracerAlpha);
             renderer.add(render, colour);
-            renderer.render();
+            renderer.render(true);
         }
     }
 
-    private void lookAtPacket(double px, double py, double pz, EntityPlayer me) {
-        double[] v = calculateLookAt(px, py, pz, me);
-        setYawAndPitch((float) v[0], (float) v[1]+1f);
+    private void lookAtPacket(Vec3d pos) {
+        Vec2d lookAt = getRotationTo(pos, true);
+        setYawAndPitch((float) lookAt.getX(), (float) lookAt.getY());
     }
 
     private boolean canPlaceCrystal(BlockPos blockPos) {
@@ -487,7 +495,9 @@ public class CrystalAura extends Module {
         }
     });
 
-    public void onEnable() { sendMessage("&aENABLED&r"); }
+    public void onEnable() {
+        sendMessage("&aENABLED&r");
+    }
 
     public void onDisable() {
         sendMessage("&cDISABLED&r");
@@ -510,23 +520,25 @@ public class CrystalAura extends Module {
                 ignoredCrystals.add(crystal);
                 hitTries = 0;
             } else {
-                lookAtPacket(crystal.posX, crystal.posY, crystal.posZ, mc.player);
+                lookAtPacket(crystal.getPositionVector());
                 mc.playerController.attackEntity(mc.player, crystal);
                 mc.player.swingArm(EnumHand.MAIN_HAND);
             }
-        } catch (Throwable ignored) { }
+        } catch (Throwable ignored) {
+        }
 
         systemTime = System.nanoTime() / 1000000L;
     }
 
     private boolean passSwordCheck() {
         if (!noToolExplode.getValue() || antiWeakness.getValue()) return true;
-        else return !noToolExplode.getValue() || (!(mc.player.getHeldItemMainhand().getItem() instanceof ItemTool) && !(mc.player.getHeldItemMainhand().getItem() instanceof ItemSword));
+        else
+            return !noToolExplode.getValue() || (!(mc.player.getHeldItemMainhand().getItem() instanceof ItemTool) && !(mc.player.getHeldItemMainhand().getItem() instanceof ItemSword));
     }
 
     @Override
     public String getHudInfo() {
-        return String.valueOf(getItems(Items.END_CRYSTAL));
+        return "" + InventoryUtils.countItemAll(426);
     }
 
     private boolean ignored(Entity e) {
@@ -576,7 +588,7 @@ public class CrystalAura extends Module {
         if (!autoDelay.getValue()) {
             return delay.getValue();
         }
-        int ping = InfoCalculator.ping(mc);
+        int ping = InfoCalculator.ping();
         return 2 * ping * (InfoCalculator.tps(2) / 20) + (ping / 10.0);
     }
 

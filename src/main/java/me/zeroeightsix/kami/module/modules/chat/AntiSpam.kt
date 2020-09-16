@@ -7,8 +7,8 @@ import me.zeroeightsix.kami.KamiMod
 import me.zeroeightsix.kami.module.Module
 import me.zeroeightsix.kami.setting.Setting
 import me.zeroeightsix.kami.setting.Settings
-import me.zeroeightsix.kami.util.MessageDetectionHelper
-import me.zeroeightsix.kami.util.MessageSendHelper
+import me.zeroeightsix.kami.util.text.MessageDetectionHelper
+import me.zeroeightsix.kami.util.text.MessageSendHelper
 import net.minecraftforge.client.event.ClientChatReceivedEvent
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -16,22 +16,13 @@ import java.util.function.Consumer
 import java.util.regex.Pattern
 import java.util.stream.Collectors
 
-/**
- * @author hub
- * @author dominikaaaa
- * Created 19 November 2019 by hub
- * Updated 12 January 2020 by hub
- * Updated 19 February 2020 by aUniqueUser
- * Updated by dominikaaaa on 19/04/20
- * Updated by Humboldt123 28/05/20
- */
 @Module.Info(
         name = "AntiSpam",
         category = Module.Category.CHAT,
         description = "Removes spam and advertising from the chat",
         showOnArray = Module.ShowOnArray.OFF
 )
-class AntiSpam : Module() {
+object AntiSpam : Module() {
     private val p = register(Settings.e<Page>("Page", Page.ONE))
 
     /* Page One */
@@ -234,7 +225,7 @@ class AntiSpam : Module() {
                 "WWE Client was the first public client to have color signs",
                 "WWE Client was the first client to have Teleport Finder",
                 "WWE Client was the first client to have Tunneller & Tunneller Back Fill",
-                "Zispanos")
+                "Zispanos") // This one is recent but it's annoying as FUCK.
         val INSULTER = arrayOf( // WWE
                 ".+ Download WWE utility mod, Its free!",
                 ".+ 4b4t is da best mintscreft serber",

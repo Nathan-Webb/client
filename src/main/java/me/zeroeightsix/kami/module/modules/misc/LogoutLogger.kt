@@ -3,14 +3,14 @@ package me.zeroeightsix.kami.module.modules.misc
 import me.zero.alpine.listener.EventHandler
 import me.zero.alpine.listener.EventHook
 import me.zero.alpine.listener.Listener
+import me.zeroeightsix.kami.event.events.ConnectionEvent
 import me.zeroeightsix.kami.module.Module
 import me.zeroeightsix.kami.setting.Settings
-import me.zeroeightsix.kami.util.Coordinate
-import me.zeroeightsix.kami.util.MessageSendHelper
 import me.zeroeightsix.kami.util.Waypoint
+import me.zeroeightsix.kami.util.text.MessageSendHelper
 import net.minecraft.client.network.NetworkPlayerInfo
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraftforge.fml.common.network.FMLNetworkEvent
+import net.minecraft.util.math.BlockPos
 
 /**
  * @author dominikaaaa
@@ -21,26 +21,30 @@ import net.minecraftforge.fml.common.network.FMLNetworkEvent
         category = Module.Category.MISC,
         description = "Logs when a player leaves the game"
 )
-class LogoutLogger : Module() {
+object LogoutLogger : Module() {
     private var saveToFile = register(Settings.b("SaveToFile", true))
     private var print = register(Settings.b("PrintToChat", true))
 
-    private var loggedPlayers = HashMap<String, Coordinate>()
+    private var loggedPlayers = HashMap<String, BlockPos>()
     private var onlinePlayers = mutableListOf<NetworkPlayerInfo>()
     private var ticks = 0
 
-    override fun onUpdate() {
-        if (mc.player == null) return
+    @EventHandler
+    private val disconnectListener = Listener(EventHook { event: ConnectionEvent.Disconnect ->
+        loggedPlayers.clear()
+        onlinePlayers.clear()
+    })
 
+    override fun onUpdate() {
         ticks++
 
         for (player in mc.world.loadedEntityList.filterIsInstance<EntityPlayer>()) {
             if (player.name == mc.player.name) continue
-            loggedPlayers[player.name] = Coordinate(player.posX.toInt(), player.posY.toInt(), player.posZ.toInt())
+            loggedPlayers[player.name] = BlockPos(player.posX.toInt(), player.posY.toInt(), player.posZ.toInt())
         }
 
         if (ticks >= 20) {
-            Thread(Runnable {
+            Thread {
                 updateOnlinePlayers()
                 loggedPlayers.forEach { loggedPlayer ->
                     var found = false
@@ -51,29 +55,18 @@ class LogoutLogger : Module() {
                     }
 
                     if (!found) {
-                        if (print.value) MessageSendHelper.sendChatMessage("${loggedPlayer.key} logged out at ${loggedPlayer.value.asString()}")
+                        val posString = "${loggedPlayer.value.x}, ${loggedPlayer.value.y}, ${loggedPlayer.value.z}"
+                        if (print.value) MessageSendHelper.sendChatMessage("${loggedPlayer.key} logged out at $posString")
                         logCoordinates(loggedPlayer.value, "${loggedPlayer.key} Logout Spot")
                         loggedPlayers.remove(loggedPlayer.key)
                     }
                 }
-            }).start()
+            }.start()
             ticks = 0
         }
     }
 
-    @EventHandler
-    private val clientDisconnect = Listener(EventHook { event: FMLNetworkEvent.ClientDisconnectionFromServerEvent ->
-        loggedPlayers.clear()
-        onlinePlayers.clear()
-    })
-
-    @EventHandler
-    private val serverDisconnect = Listener(EventHook { event: FMLNetworkEvent.ServerDisconnectionFromClientEvent ->
-        loggedPlayers.clear()
-        onlinePlayers.clear()
-    })
-
-    private fun logCoordinates(coordinate: Coordinate, name: String): Coordinate {
+    private fun logCoordinates(coordinate: BlockPos, name: String): BlockPos {
         return if (saveToFile.value) {
             Waypoint.createWaypoint(coordinate, name)
         } else {

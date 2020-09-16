@@ -7,24 +7,21 @@ import me.zeroeightsix.kami.event.events.BlockBreakEvent
 import me.zeroeightsix.kami.event.events.RenderEvent
 import me.zeroeightsix.kami.module.Module
 import me.zeroeightsix.kami.setting.Settings
-import me.zeroeightsix.kami.util.colourUtils.ColourHolder
-import me.zeroeightsix.kami.util.ESPRenderer
-import me.zeroeightsix.kami.util.MessageSendHelper.sendChatMessage
+import me.zeroeightsix.kami.util.color.ColorHolder
+import me.zeroeightsix.kami.util.graphics.ESPRenderer
+import me.zeroeightsix.kami.util.text.MessageSendHelper.sendChatMessage
 import net.minecraft.client.audio.PositionedSoundRecord
 import net.minecraft.init.Blocks
 import net.minecraft.init.SoundEvents
 import net.minecraft.util.math.AxisAlignedBB
 import net.minecraft.util.math.BlockPos
 
-/**
- * Created by Xiaro on 27/07/20.
- */
 @Module.Info(
         name = "BreakingESP",
         description = "Highlights blocks being broken near you",
         category = Module.Category.RENDER
 )
-class BreakingESP : Module() {
+object BreakingESP : Module() {
     private val ignoreSelf = register(Settings.b("IgnoreSelf", false))
     private val obsidianOnly = register(Settings.b("ObsidianOnly", false))
     private val warning = register(Settings.b("Warning", false))
@@ -43,8 +40,8 @@ class BreakingESP : Module() {
     private val breakingBlockList = HashMap<Int, Triple<BlockPos, Int, Boolean>>() /* <BreakerID, <Position, Progress, Warned> */
 
     override fun onWorldRender(event: RenderEvent) {
-        val colour = ColourHolder(r.value, g.value, b.value)
-        val renderer = ESPRenderer(event.partialTicks)
+        val colour = ColorHolder(r.value, g.value, b.value)
+        val renderer = ESPRenderer()
         renderer.aFilled = if (filled.value) aFilled.value else 0
         renderer.aOutline = if (outline.value) aOutline.value else 0
         renderer.aTracer = if (tracer.value) aTracer.value else 0
@@ -61,12 +58,12 @@ class BreakingESP : Module() {
             }
             renderer.add(resizedBox, colour)
         }
-        renderer.render()
+        renderer.render(true)
 
         if (selfBreaking != null) {
             renderer.aTracer = 0
             renderer.add(selfBreaking, colour)
-            renderer.render()
+            renderer.render(true)
         }
     }
 

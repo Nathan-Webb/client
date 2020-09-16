@@ -1,7 +1,6 @@
 package me.zeroeightsix.kami.util
 
 import net.minecraft.block.Block
-import net.minecraft.block.BlockEnderChest
 import net.minecraft.block.state.IBlockState
 import net.minecraft.client.Minecraft
 import net.minecraft.init.Blocks
@@ -11,11 +10,14 @@ import net.minecraft.util.EnumHand
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec3d
+import kotlin.math.atan2
 import kotlin.math.floor
+import kotlin.math.sqrt
 
 /**
- * Created by hub on 15 June 2019
- * Last Updated 12 January 2019 by hub
+ * Created by hub on 15/06/19
+ * Updated by hub on 12/01/19
+ * Updated by Xiaro on 22/08/20
  */
 object BlockUtils {
     @JvmField
@@ -52,12 +54,22 @@ object BlockUtils {
             Blocks.RED_SHULKER_BOX,
             Blocks.BLACK_SHULKER_BOX
     )
+
+    @JvmField
+    val surroundOffset = arrayOf(
+            BlockPos(0, -1, 0),  // down
+            BlockPos(0, 0, -1),  // north
+            BlockPos(1, 0, 0),  // east
+            BlockPos(0, 0, 1),  // south
+            BlockPos(-1, 0, 0) // west
+    )
+
     private val mc = Minecraft.getMinecraft()
 
     fun placeBlockScaffold(pos: BlockPos) {
-        val eyesPos = Vec3d(Wrapper.getPlayer().posX,
-                Wrapper.getPlayer().posY + Wrapper.getPlayer().getEyeHeight(),
-                Wrapper.getPlayer().posZ)
+        val eyesPos = Vec3d(mc.player.posX,
+                mc.player.posY + mc.player.getEyeHeight(),
+                mc.player.posZ)
         for (side in EnumFacing.values()) {
             val neighbor = pos.offset(side)
             val side2 = side.opposite
@@ -77,7 +89,7 @@ object BlockUtils {
             // place block
             faceVectorPacketInstant(hitVec)
             processRightClickBlock(neighbor, side2, hitVec)
-            Wrapper.getPlayer().swingArm(EnumHand.MAIN_HAND)
+            mc.player.swingArm(EnumHand.MAIN_HAND)
             mc.rightClickDelayTimer = 4
             return
         }
@@ -88,13 +100,13 @@ object BlockUtils {
         val diffX = vec.x - eyesPos.x
         val diffY = vec.y - eyesPos.y
         val diffZ = vec.z - eyesPos.z
-        val diffXZ = Math.sqrt(diffX * diffX + diffZ * diffZ)
-        val yaw = Math.toDegrees(Math.atan2(diffZ, diffX)).toFloat() - 90f
-        val pitch = (-Math.toDegrees(Math.atan2(diffY, diffXZ))).toFloat()
-        return floatArrayOf(Wrapper.getPlayer().rotationYaw
-                + MathHelper.wrapDegrees(yaw - Wrapper.getPlayer().rotationYaw),
-                Wrapper.getPlayer().rotationPitch + MathHelper
-                        .wrapDegrees(pitch - Wrapper.getPlayer().rotationPitch))
+        val diffXZ = sqrt(diffX * diffX + diffZ * diffZ)
+        val yaw = Math.toDegrees(atan2(diffZ, diffX)).toFloat() - 90f
+        val pitch = (-Math.toDegrees(atan2(diffY, diffXZ))).toFloat()
+        return floatArrayOf(mc.player.rotationYaw
+                + MathHelper.wrapDegrees(yaw - mc.player.rotationYaw),
+                mc.player.rotationPitch + MathHelper
+                        .wrapDegrees(pitch - mc.player.rotationPitch))
     }
 
     private val eyesPos = Vec3d(mc.player.posX, mc.player.posY + mc.player.getEyeHeight(), mc.player.posZ)
@@ -102,12 +114,12 @@ object BlockUtils {
     @JvmStatic
     fun faceVectorPacketInstant(vec: Vec3d) {
         val rotations = getLegitRotations(vec)
-        Wrapper.getPlayer().connection.sendPacket(CPacketPlayer.Rotation(rotations[0],
-                rotations[1], Wrapper.getPlayer().onGround))
+        mc.player.connection.sendPacket(CPacketPlayer.Rotation(rotations[0],
+                rotations[1], mc.player.onGround))
     }
 
     private fun processRightClickBlock(pos: BlockPos, side: EnumFacing, hitVec: Vec3d) {
-        mc.playerController.processRightClickBlock(Wrapper.getPlayer(),
+        mc.playerController.processRightClickBlock(mc.player,
                 mc.world, pos, side, hitVec, EnumHand.MAIN_HAND)
     }
 
@@ -121,7 +133,7 @@ object BlockUtils {
     }
 
     private fun getState(pos: BlockPos): IBlockState {
-        return Wrapper.getWorld().getBlockState(pos)
+        return mc.world.getBlockState(pos)
     }
 
     fun checkForNeighbours(blockPos: BlockPos): Boolean {
@@ -142,7 +154,7 @@ object BlockUtils {
     fun hasNeighbour(blockPos: BlockPos): Boolean {
         for (side in EnumFacing.values()) {
             val neighbour = blockPos.offset(side)
-            if (!Wrapper.getWorld().getBlockState(neighbour).material.isReplaceable) {
+            if (!mc.world.getBlockState(neighbour).material.isReplaceable) {
                 return true
             }
         }
@@ -172,13 +184,21 @@ object BlockUtils {
             if (checkLiquid) {
                 for (x in 0..1) for (z in 0..1) {
                     val blockPos = BlockPos(xArray[x], (mc.player.posY + yOffset).toInt(), zArray[z])
-                    if (mc.world.getBlockState(blockPos).block.material.isLiquid) return -999.0
+                    if (isLiquid(blockPos)) return -999.0
                 }
             }
             yOffset -= 0.05
             if (mc.player.posY + yOffset < 0.0f) return -999.0
         }
         return boundingBox.offset(0.0, yOffset + 0.05, 0.0).minY
+    }
+
+    fun isLiquid(pos: BlockPos): Boolean {
+        return mc.world.getBlockState(pos).block.material.isLiquid
+    }
+
+    fun isWater(pos: BlockPos): Boolean {
+        return mc.world.getBlockState(pos).block == Blocks.WATER
     }
 
     /**

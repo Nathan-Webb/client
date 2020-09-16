@@ -2,9 +2,8 @@ package me.zeroeightsix.kami.module.modules.misc
 
 import me.zeroeightsix.kami.module.Module
 import me.zeroeightsix.kami.setting.Settings
-import me.zeroeightsix.kami.util.Coordinate
-import me.zeroeightsix.kami.util.MessageSendHelper
 import me.zeroeightsix.kami.util.Waypoint
+import me.zeroeightsix.kami.util.text.MessageSendHelper
 import net.minecraft.client.audio.PositionedSoundRecord
 import net.minecraft.init.SoundEvents
 import net.minecraft.tileentity.*
@@ -12,15 +11,12 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import kotlin.math.roundToInt
 
-/**
- * @author Nucleus
- */
 @Module.Info(
         name = "StashFinder",
         category = Module.Category.MISC,
         description = "Logs storage units in render distance."
 )
-class StashFinder : Module() {
+object StashFinder : Module() {
     private val logToChat = register(Settings.b("LogToChat"))
     private val playSound = register(Settings.b("PlaySound"))
 
@@ -58,9 +54,9 @@ class StashFinder : Module() {
             return intArrayOf(x, y, z)
         }
 
-        fun getBlockPos(): Coordinate {
+        fun getBlockPos(): BlockPos {
             val xyz = this.getPosition()
-            return Coordinate(xyz[0], xyz[1], xyz[2])
+            return BlockPos(xyz[0], xyz[1], xyz[2])
         }
 
         override fun toString(): String {
@@ -92,8 +88,6 @@ class StashFinder : Module() {
     }
 
     override fun onUpdate() {
-        super.onUpdate()
-
         mc.world.loadedTileEntityList
                 .filter { (it is TileEntityChest && logChests.value) || (it is TileEntityShulkerBox && logShulkers.value) || (it is TileEntityDropper && logDroppers.value) || (it is TileEntityDispenser && logDispensers.value) }
                 .forEach { logTileEntity(it) }
